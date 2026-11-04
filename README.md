@@ -27,7 +27,7 @@ I built this homelab to develop hands-on skills in networking, security, and sel
 
 ### Game Server
 - **4 GB of RAM** for the Minecraft server. It runs without mods, and from experience a server needs at least 4 GB. The VM has 6 GB, and 4 GB of that goes to the server, with the rest for the OS.
-- **Stability:** no lag or crashes since it went live on October 18, 2026.
+- **Stability:** no lag or crashes since it went live on October 19, 2026.
 - **Next step:** add backup plugin for automatic world backups.
 
 ## Roadmap
