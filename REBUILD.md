@@ -80,6 +80,7 @@ cd /root/homelab/proxmox && chmod +x *.sh
 This saves the old VM configs to `/root/homelab-teardown-<date>/`, prints each VM's **MAC address**, destroys VMs 100 and 101, removes the old (SUSPENDED) `das` pool and any storage on it (such as `backups`), and deletes the `photos`/`media`/`documents` mappings.
 
 - **Copy the two MAC addresses** into `APPS_MAC` / `MC_MAC` in `homelab.env`. The new VMs then keep the same MACs, so the router's DHCP reservations still match. The VMs also get static IPs from cloud-init, so this is a backup.
+- **If the script prints nothing or a VM won't stop:** a backup job that was writing to the old DAS is probably frozen and holding the VM's lock (look for a *Backup Job* that never finishes in the task log). Reboot the host. If it won't shut down within ~5 minutes, hold the power button. Then run `qm unlock 100; qm unlock 101` and run the script again.
 - **If `zpool destroy` hangs** (the old DAS is gone and the pool is SUSPENDED): press Ctrl+C. If it won't stop, reboot the host; with the old drives gone, the pool won't import again. Then run `./01-teardown.sh` again. It skips anything already done.
 
 Check: `qm list` shows no VMs, `zpool list` shows no `das`, and `cat /etc/pve/storage.cfg` has nothing pointing at `/das`.

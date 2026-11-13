@@ -12,6 +12,7 @@ source ./homelab.env
 
 echo "This PERMANENTLY deletes VM ${APPS_VMID} (${APPS_NAME}), VM ${MC_VMID} (${MC_NAME}),"
 echo "the ZFS pool '${POOL}', and the photos/media/documents directory mappings."
+echo "If a backup job has been stuck since the old DAS disappeared, reboot the host first (see REBUILD.md)."
 read -r -p "Type WIPE to continue: " answer
 [[ "$answer" == "WIPE" ]] || { echo "Aborted."; exit 1; }
 
@@ -25,8 +26,10 @@ for vmid in "$APPS_VMID" "$MC_VMID"; do
     qm config "$vmid" > "$saved/$vmid.conf"
     mac=$(qm config "$vmid" | sed -n 's/^net0: [a-z0-9]*=\([0-9A-Fa-f:]*\),.*/\1/p')
     echo "VM $vmid MAC: ${mac:-unknown}  (put this in homelab.env so the router reservation keeps working)"
-    qm stop "$vmid" --skiplock 1 &>/dev/null || true
-    qm destroy "$vmid" --purge 1 --destroy-unreferenced-disks 1
+    # Clear a stale lock (e.g. a backup job that froze when the old DAS disappeared)
+    qm unlock "$vmid" &>/dev/null || true
+    timeout 120 qm stop "$vmid" --skiplock 1 &>/dev/null || true
+    qm destroy "$vmid" --purge 1 --destroy-unreferenced-disks 1 --skiplock 1
     echo "VM $vmid destroyed."
   else
     echo "VM $vmid does not exist, skipping."
