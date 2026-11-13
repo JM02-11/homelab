@@ -1,0 +1,11 @@
+# Secrets
+.env
+proxmox/homelab.env
+
+# Runtime data created by the containers when run from this repo
+services/Nextcloud/db/
+services/Nextcloud/html/
+services/Vaultwarden/data/
+services/AdGuardHome/work/
+services/AdGuardHome/conf/
+services/Minecraft/data/

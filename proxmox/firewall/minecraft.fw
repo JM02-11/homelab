@@ -1,0 +1,10 @@
+[OPTIONS]
+# Minecraft VM. Friends come in through the outbound playit.gg tunnel, which needs no inbound rule.
+enable: 1
+policy_in: DROP
+policy_out: ACCEPT
+
+[RULES]
+IN SSH(ACCEPT) -source __LAN__ -log nolog
+IN Ping(ACCEPT) -source __LAN__ -log nolog
+IN ACCEPT -source __LAN__ -p tcp -dport 25565 -log nolog

@@ -1,0 +1,14 @@
+[OPTIONS]
+# Apps VM (Nextcloud, Vaultwarden, AdGuard Home)
+enable: 1
+policy_in: DROP
+policy_out: ACCEPT
+
+[RULES]
+IN SSH(ACCEPT) -source __LAN__ -log nolog
+IN Ping(ACCEPT) -source __LAN__ -log nolog
+# AdGuard Home: DNS for the whole LAN, and its admin page
+IN DNS(ACCEPT) -source __LAN__ -log nolog
+IN ACCEPT -source __LAN__ -p tcp -dport 3000 -log nolog
+# Tailscale direct (peer-to-peer) connections. Nextcloud and Vaultwarden are only reachable through Tailscale.
+IN ACCEPT -p udp -dport 41641 -log nolog

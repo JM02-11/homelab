@@ -1,0 +1,9 @@
+[OPTIONS]
+# Datacenter level: turns the firewall on. Everything inbound is dropped unless a rule allows it.
+enable: 1
+policy_in: DROP
+policy_out: ACCEPT
+
+[IPSET management]
+# Devices allowed to manage the host (web UI 8006, SSH 22)
+__LAN__

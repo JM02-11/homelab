@@ -1,0 +1,66 @@
+name: nextcloud
+
+services:
+  db:
+    container_name: nextcloud-db
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      # Database stays on the VM's local SSD: databases should not run on a shared filesystem like virtiofs
+      - ./db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      retries: 5
+
+  redis:
+    container_name: nextcloud-redis
+    image: docker.io/valkey/valkey:9
+    restart: unless-stopped
+
+  app:
+    container_name: nextcloud
+    image: nextcloud:${NEXTCLOUD_VERSION}-apache
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    # Only reachable from inside the VM; Tailscale Serve adds HTTPS in front of it
+    ports:
+      - "127.0.0.1:8081:80"
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: redis
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${TS_FQDN}
+      TRUSTED_PROXIES: 172.16.0.0/12
+      OVERWRITEPROTOCOL: https
+      OVERWRITECLIURL: https://${TS_FQDN}
+      PHP_UPLOAD_LIMIT: 16G
+      PHP_MEMORY_LIMIT: 1G
+      TZ: ${TZ}
+    volumes:
+      - ./html:/var/www/html
+      # User files live on the DAS (ZFS dataset das/vault/nextcloud, shared with virtiofs)
+      - /mnt/nextcloud:/var/www/html/data
+
+  cron:
+    container_name: nextcloud-cron
+    image: nextcloud:${NEXTCLOUD_VERSION}-apache
+    restart: unless-stopped
+    entrypoint: /cron.sh
+    depends_on:
+      - app
+    volumes:
+      - ./html:/var/www/html
+      - /mnt/nextcloud:/var/www/html/data
