@@ -2,7 +2,7 @@
 
 How to rebuild the homelab from a working Proxmox host. This is the procedure used in November 2026, when I:
 
-- replaced the ORICO Big5 SSD DAS with an **ORICO 9958RU3** holding 3.5" HDDs and created a new ZFS pool
+- replaced the ORICO Big5 DAS with an **ORICO 9958RU3** (3 SSDs + 2 HDDs) and created two ZFS pools, one for data and one for backups
 - wiped both VMs and recreated them from the Ubuntu 26.04 cloud image
 - replaced Immich + Jellyfin with **Nextcloud, Vaultwarden and AdGuard Home**
 - started a fresh Minecraft world
@@ -67,7 +67,7 @@ apt update && apt install -y git
 git clone https://github.com/JM02-11/homelab /root/homelab
 cd /root/homelab/proxmox
 cp homelab.env.example homelab.env
-nano homelab.env          # check every value; POOL_DISKS and the MACs come later
+nano homelab.env          # check every value; the disk lists and the MACs come later
 ```
 
 ## Phase 1: Tear down the old setup
@@ -108,29 +108,28 @@ for d in /dev/sdX /dev/sdY; do smartctl -d sat -H -A "$d" | grep -E 'overall|Rea
 
 Each drive needs **its own unique** `/dev/disk/by-id/` name. Some ORICO multi-bay USB enclosures report duplicate or missing IDs, which makes ZFS show a disk as FAULTED after a reboot. `02-create-pool.sh` refuses to continue if two IDs point at the same disk. If a drive has no by-id name at all, stop and check `ls -l /dev/disk/by-path/` before going on.
 
-Put the by-id paths into `POOL_DISKS` in `homelab.env`, and pick `POOL_LAYOUT`:
+The DAS holds **3 × 960 GB SSDs** (2 Toshiba THNSF8960PCSE, 1 Samsung PM883) and **2 × 1 TB WD Blue HDDs** (WD10EZEX). They become two pools, so the backups sit on different drives than the data they protect:
 
-| Drives | Layout | Survives | Usable (N drives of size S) |
-|---|---|---|---|
-| 2 | `mirror` | 1 failure | S |
-| 3–4 | `raidz1` | 1 failure | (N−1) × S |
-| 5 | `raidz2` **(recommended)** | 2 failures | 3 × S |
+| Pool | Drives | Layout | Usable | Holds |
+|---|---|---|---|---|
+| `das` | 3 SSDs | `raidz1` (survives 1 failure) | ~1.7 TB | Nextcloud files |
+| `bkp` | 2 HDDs | `mirror` (survives 1 failure) | ~0.9 TB | App backups, world backups, Proxmox VM backups |
 
-Rebuilding a large HDD takes many hours, and a USB hiccup during that window could take out a second drive, so RAID-Z2 is worth the space with 5 drives.
+In `homelab.env`, put the SSD by-id paths in `POOL_DISKS` (with `POOL_LAYOUT=raidz1`), and the two WD paths in `BKP_DISKS` (with `BKP_POOL=bkp`, `BKP_LAYOUT=mirror`). Use the `ata-...` or `usb-...` names that end in the drive's serial number, without `-partN`.
 
-### 2c. Create the pool
+### 2c. Create the pools
 
 ```bash
 ./02-create-pool.sh
 ```
 
-This creates pool `das` (`ashift=12`, `lz4`, `atime=off`) with three datasets:
+The reused SSDs still carry the old `das` pool's labels, so the script clears old ZFS labels and partition tables first. Then it creates both pools (`ashift=12`, `lz4`, `atime=off`, plus TRIM on the SSD pool) and these datasets:
 
 | Dataset | Mounted at | Used for |
 |---|---|---|
 | `das/vault/nextcloud` | `/das/vault/nextcloud` | Nextcloud user files (owner UID 33, mode 0770) |
-| `das/vault/backups` | `/das/vault/backups` | Nightly app backups + Minecraft world backups (owner UID 1000) |
-| `das/vzdump` | `/das/vzdump` | Proxmox VM backups |
+| `bkp/apps` | `/bkp/apps` | Nightly app backups + Minecraft world backups (owner UID 1000) |
+| `bkp/vzdump` | `/bkp/vzdump` | Proxmox VM backups |
 
 ## Phase 3: Mappings, backup storage, snapshots
 
@@ -139,8 +138,8 @@ This creates pool `das` (`ashift=12`, `lz4`, `atime=off`) with three datasets:
 ```
 
 - Directory mappings `nextcloud` and `backups` (shared into VMs with virtiofs)
-- Storage `das-vzdump` plus a nightly **03:00** backup job for both VMs (keeps 7 daily, 4 weekly, 3 monthly)
-- Daily **02:30** recursive snapshots of `das/vault` (keeps 14)
+- Storage `bkp-vzdump` (on the HDD pool) plus a nightly **03:00** backup job for both VMs (keeps 7 daily, 4 weekly, 3 monthly)
+- Daily **02:30** snapshots of `das/vault` (Nextcloud files, keeps 14)
 
 ## Phase 4: Create the VMs
 
@@ -254,7 +253,7 @@ Proxmox host updates stay manual (*pve → Updates → Refresh → Upgrade*), do
 
 ## Phase 10: Verify
 
-- [ ] `zpool status das`: all disks ONLINE, listed by by-id name, 0 errors
+- [ ] `zpool status das bkp`: all disks ONLINE, listed by by-id name, 0 errors
 - [ ] **Reboot the Proxmox host.** The pool imports by itself, both VMs start, all containers come up, and `zpool status` still shows by-id names with nothing FAULTED
 - [ ] A website on the PC loads and shows up in AdGuard's query log. Ads are blocked on the phone away from home (over Tailscale)
 - [ ] Phone, Wi-Fi off, Tailscale on: Nextcloud app uploads a file, and the file appears under `/das/vault/nextcloud` on the host
@@ -262,11 +261,10 @@ Proxmox host updates stay manual (*pve → Updates → Refresh → Upgrade*), do
 - [ ] A friend joins Minecraft through playit.gg. A player who isn't whitelisted is kicked
 - [ ] **Backups actually work:**
   - `sudo /usr/local/sbin/homelab-backup-apps` on Apps → files appear in `/mnt/backups/*`
-  - *Datacenter → Backup →* select the job → **Run now** → both VMs show up in `das-vzdump`
+  - *Datacenter → Backup →* select the job → **Run now** → both VMs show up in `bkp-vzdump`
   - `zfs list -t snapshot -r das/vault` the next day shows `@auto-` snapshots
   - Once: restore VM 101's backup to a new VMID, boot it, then delete it
-- [ ] Update `hardware/README.md` with the drive models and capacity (`zfs list das`)
 
 ## Still not covered
 
-Everything above lives on one DAS in one house. A failed enclosure, fire, or theft would take the live data **and** the backups. The remaining step is an **off-site copy** of `das/vault` and `das/vzdump`: a USB drive kept elsewhere, or an encrypted cloud backup (e.g. restic to Backblaze B2).
+The backups are on separate drives from the data, but both are still in one enclosure in one house. A failed enclosure, fire, or theft would take the live data **and** the backups. The remaining step is an **off-site copy** of `bkp/apps`, `bkp/vzdump` and the Nextcloud files: a USB drive kept elsewhere, or an encrypted cloud backup (e.g. restic to Backblaze B2).

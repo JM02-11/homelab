@@ -51,6 +51,10 @@ if grep -qE "^[a-z]+: ${POOL}\$" /etc/pve/storage.cfg; then
   echo "Removed Proxmox storage entry '$POOL'."
 fi
 
+for p in "$POOL" "${BKP_POOL:-bkp}"; do
+  if grep -qE "^[a-z]+: ${p}\$" /etc/pve/storage.cfg; then pvesm remove "$p"; fi
+done
+
 if zpool list "$POOL" &>/dev/null; then
   echo "Destroying pool '$POOL'. If this hangs for more than a minute, press Ctrl+C,"
   echo "unplug the old DAS (if still attached), reboot the host, and re-run this script."

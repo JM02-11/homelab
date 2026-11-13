@@ -3,8 +3,8 @@
 ## 2026-11-13: Full rebuild
 
 **Storage**
-- Replaced the ORICO MixData Vault Big5 (5 × 960 GB SSD, RAID-Z1) with an ORICO 9958RU3 5-bay enclosure holding 3.5" HDDs, in Normal (non-RAID) mode.
-- Destroyed the old `das` pool (SUSPENDED after the old DAS was removed) and created a new one. Datasets: `vault/nextcloud`, `vault/backups`, `vzdump`.
+- Replaced the ORICO MixData Vault Big5 (5 × 960 GB SSD, RAID-Z1) with an ORICO 9958RU3 5-bay enclosure in Normal (non-RAID) mode, holding 3 of the old SSDs and 2 × 1 TB WD Blue HDDs.
+- Destroyed the old `das` pool (SUSPENDED after the old DAS was removed). Created two pools: `das` (3 SSDs, RAID-Z1) for Nextcloud data, and `bkp` (2 HDDs, mirror) for app backups and VM backups.
 - Old directory mappings `photos`, `media`, `documents` removed; new mappings `nextcloud`, `backups`.
 
 **VMs**

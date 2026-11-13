@@ -1,6 +1,6 @@
 # Homelab
 
-My homelab runs a file and calendar server (Nextcloud), a password manager (Vaultwarden), network-wide ad blocking (AdGuard Home), and a Minecraft server I play occasionally with friends. Every service runs in a Docker container on one of two virtual machines. The host is an HP ProDesk 600 G4 DM running Proxmox as the hypervisor. Bulk storage is an ORICO 9958RU3 DAS (Direct Attached Storage) with 3.5" hard drives in a ZFS pool. The pool spreads data and parity across the drives, so it survives a drive failure.
+My homelab runs a file and calendar server (Nextcloud), a password manager (Vaultwarden), network-wide ad blocking (AdGuard Home), and a Minecraft server I play occasionally with friends. Every service runs in a Docker container on one of two virtual machines. The host is an HP ProDesk 600 G4 DM running Proxmox as the hypervisor. Bulk storage is an ORICO 9958RU3 DAS (Direct Attached Storage) with two ZFS pools: three SSDs in RAID-Z1 for data, and two hard drives mirrored for backups. Each pool survives a drive failure, and the backups never share a drive with the data.
 
 The whole setup can be rebuilt from this repo: see **[REBUILD.md](REBUILD.md)**.
 
@@ -43,15 +43,15 @@ I built this homelab to develop hands-on skills in networking, security, and sel
 ### Self-Hosting
 - **Docker:** each service runs in its own isolated container, with versions pinned so updates are deliberate.
 - **Two VMs:** apps and the game server are kept separate because they need different resources.
-- **Storage:** ZFS datasets on the DAS are shared into the VMs with virtiofs. Databases stay on the VMs' local SSD, because they shouldn't run on shared filesystems.
+- **Storage:** data on an SSD pool and backups on a separate HDD pool. ZFS datasets are shared into the VMs with virtiofs. Databases stay on the VMs' local SSD, because they shouldn't run on shared filesystems.
 
 ### Backups
 
 | Layer | What | When | Kept |
 |---|---|---|---|
 | App backups | Nextcloud DB dump + config, Vaultwarden DB + keys, AdGuard config, Minecraft world | 01:30 nightly (Minecraft daily) | 14 days |
-| ZFS snapshots | `das/vault` (Nextcloud files + app backups) | 02:30 daily | 14 days |
-| VM backups | Both VMs (vzdump to `das-vzdump`) | 03:00 nightly | 7 daily, 4 weekly, 3 monthly |
+| ZFS snapshots | `das/vault` (Nextcloud files) | 02:30 daily | 14 days |
+| VM backups | Both VMs (vzdump to `bkp-vzdump`) | 03:00 nightly | 7 daily, 4 weekly, 3 monthly |
 
 ### Game Server
 - **4 GB of RAM** for the Paper server out of the VM's 6 GB.
