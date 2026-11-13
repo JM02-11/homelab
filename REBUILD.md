@@ -28,14 +28,17 @@ Everything is scripted. Settings live in one file, `proxmox/homelab.env`. Destru
 
 ## Phase 0: Prep
 
-**On my PC (PowerShell or a terminal):**
+**On my PC (Windows PowerShell):**
 
-```bash
-ssh-keygen -t ed25519 -f ~/.ssh/homelab_ed25519 -C "homelab"
-scp ~/.ssh/homelab_ed25519.pub root@192.168.1.81:/root/homelab_ed25519.pub
+```powershell
+mkdir -Force $env:USERPROFILE\.ssh
+ssh-keygen -t ed25519 -f "$env:USERPROFILE\.ssh\homelab_ed25519" -C "homelab"
+scp "$env:USERPROFILE\.ssh\homelab_ed25519.pub" root@192.168.1.81:/root/homelab_ed25519.pub
 ```
 
-Add this to `~/.ssh/config` on the PC so `ssh apps` / `ssh minecraft` / `ssh pve` just work:
+(PowerShell doesn't expand `~` for `ssh-keygen`, so use `$env:USERPROFILE`. On Linux or macOS, use `~/.ssh/...` instead.)
+
+Create the SSH config file (`notepad $env:USERPROFILE\.ssh\config`) so `ssh apps` / `ssh minecraft` / `ssh pve` just work. Inside this file `~` is fine, because ssh expands it itself:
 
 ```
 Host pve
