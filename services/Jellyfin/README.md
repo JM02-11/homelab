@@ -17,7 +17,7 @@ Self-hosted media server for movies and TV shows: a private alternative to Plex 
 
 | Data | Location | Protection |
 |---|---|---|
-| Media library | `/mnt/media` → DAS via virtiofs | RAID-Z1 |
+| Media library | `/mnt/media` → DAS via virtiofs | ZFS pool `das` (`recordsize=1M`) |
 | Settings & metadata | `./config` on the VM disk | None |
 | Cache | `./cache` on the VM disk | Not needed; rebuilt automatically |
 

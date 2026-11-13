@@ -1,6 +1,6 @@
 # Homelab
 
-This is my homelab where  I have a photo server (Immich), a media server (Jellyfin) for movies and TV shows, and a Minecraft server that I play occasionally with my friends. All of the services are running inside Docker containers on two virtual machines. The homelab is based on an HP Prodesk 600 G4 DM and is running Proxmox as the hypervisor. I also have an ORICO DAS (Direct Attached Storage) that has five 960GB drives in it and is configured into RAID-Z which protects against drive failure by spreading the data and parity across all drives making only 3.37 TB usable.
+This is my homelab where  I have a photo server (Immich), a media server (Jellyfin) for movies and TV shows, and a Minecraft server that I play occasionally with my friends. All of the services are running inside Docker containers on two virtual machines. The homelab is based on an HP Prodesk 600 G4 DM and is running Proxmox as the hypervisor. I also have an ORICO 9958RU3 DAS (Direct Attached Storage) with 3.5" hard drives in a ZFS pool, which protects against drive failure by spreading data and parity across the drives. It replaced a smaller 5 × 960 GB SSD DAS in November 2026.
 
 See [hardware/](hardware/README.md) for full specs
 

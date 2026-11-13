@@ -26,8 +26,8 @@ Self-hosted photo and video backup: a private replacement for Google Photos.
 
 | Data | Location | Protection |
 |---|---|---|
-| Photos & videos | `/mnt/photos` → DAS via virtiofs | RAID-Z1 |
-| Nightly database backups | `/mnt/photos/backups` (last 14 kept) | RAID-Z1 |
+| Photos & videos | `/mnt/photos` → DAS via virtiofs | ZFS pool `das` |
+| Nightly database backups | `/mnt/photos/backups` (last 14 kept) | ZFS pool `das` |
 | Live database | `./postgres` on the VM disk | None (backed up nightly to the DAS) |
 | ML model cache | Docker volume `model-cache` | Not needed; re-downloads automatically |
 
@@ -39,6 +39,10 @@ The live database stays on the VM's local disk on purpose: Immich doesn't suppor
 - **Image digests:** the database and Redis images are pinned by `sha256` digest, so Docker always pulls the exact same build.
 - **Data checksums** are enabled in Postgres to detect database corruption.
 - **Secrets:** the real `.env` is not committed. See [`.env.example`](.env.example).
+
+## History
+
+- **2026-11-13:** reinstalled fresh (new database) after the DAS was replaced and the pool was wiped. See [das-rebuild.md](../../hardware/das-rebuild.md).
 
 ## Updating
 
