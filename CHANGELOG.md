@@ -7,6 +7,9 @@
 - Destroyed the old `das` pool (SUSPENDED after the old DAS was removed). Created two pools: `das` (3 SSDs, RAID-Z1) for Nextcloud data, and `bkp` (2 HDDs, mirror) for app backups and VM backups.
 - Old directory mappings `photos`, `media`, `documents` removed; new mappings `nextcloud`, `backups`.
 
+**DAS sleep fix**
+- The ORICO's Smart Sleep dropped the whole enclosure off USB after ~10 idle minutes, which suspended both pools. Added `proxmox/03b-das-keepalive.sh`: keepalive reads every 2 minutes, USB autosuspend off, boot waits for the drives before importing the pools, and VMs start after the pools.
+
 **VMs**
 - Destroyed and recreated both VMs from the Ubuntu 26.04 cloud image with cloud-init (SSH key login, static IPs, same MAC addresses).
 

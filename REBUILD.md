@@ -141,6 +141,19 @@ The reused SSDs still carry the old `das` pool's labels, so the script clears ol
 - Storage `bkp-vzdump` (on the HDD pool) plus a nightly **03:00** backup job for both VMs (keeps 7 daily, 4 weekly, 3 monthly)
 - Daily **02:30** snapshots of `das/vault` (Nextcloud files, keeps 14)
 
+Then keep the enclosure awake:
+
+```bash
+./03b-das-keepalive.sh
+```
+
+The ORICO's Smart Sleep hibernates after ~10 idle minutes, and when it does, **the whole enclosure drops off USB**. ZFS then suspends both pools (this happened during the first rebuild), and after a reboot the pools can't import because the drives aren't there yet. The script:
+- turns off USB power-saving for the enclosure
+- adds a timer that reads one small block from each drive every 2 minutes, so it's never idle for 10
+- makes boot wait (up to 3 min) for all the drives before importing the pools, and starts the VMs only after the pools are imported
+
+**If the pools ever show SUSPENDED or go missing:** check that `lsblk ... | grep usb` lists all 5 drives (if not, power-cycle the enclosure), then run `zpool import das; zpool import bkp` (or `zpool clear` if they're still imported), then `qm start 100; qm start 101`.
+
 ## Phase 4: Create the VMs
 
 ```bash

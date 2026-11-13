@@ -74,7 +74,7 @@ graph LR
 ## Known Limitations
 
 - **ZFS over USB:** USB-to-SATA adapters can briefly disconnect drives, which ZFS may treat as failures, and they hide some drive health data (SMART needs `smartctl -d sat`). All drives share a single 5 Gbps link. Some ORICO multi-bay enclosures report duplicate disk IDs, so check `zpool status` after every host reboot. A future upgrade would be a SATA or SAS controller (HBA) in a machine with drive bays.
-- **Drive sleep:** the 9958RU3 spins the HDDs down after about 10 minutes idle, so the first backup write after a pause is slow.
+- **Enclosure sleep:** the 9958RU3's Smart Sleep hibernates after about 10 idle minutes and **drops off USB entirely**, which suspended both pools during the rebuild. [`proxmox/03b-das-keepalive.sh`](../proxmox/03b-das-keepalive.sh) prevents this with a 2-minute keepalive read, turns off USB autosuspend, and makes boot wait for the drives before importing the pools.
 - **Used drives:** the SSDs are reused from the old DAS and the WD Blues are older desktop drives. Monthly scrubs and `smartctl -d sat` checks matter more here.
 - **Backups share a box with the data:** the backups are on separate drives, but in the same enclosure. They protect against mistakes, corruption and failed drives, but not against losing the enclosure or the house. An off-site copy is on the roadmap.
 - **All CPU cores assigned:** fine at current load, but heavy use on both VMs at once could slow them down.
