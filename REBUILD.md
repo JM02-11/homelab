@@ -123,7 +123,7 @@ In `homelab.env`, put the SSD by-id paths in `POOL_DISKS` (with `POOL_LAYOUT=rai
 ./02-create-pool.sh
 ```
 
-The reused SSDs still carry the old `das` pool's labels, so the script clears old ZFS labels and partition tables first. Then it creates both pools (`ashift=12`, `lz4`, `atime=off`, plus TRIM on the SSD pool) and these datasets:
+The reused SSDs still carry the old `das` pool's labels, so the script clears old ZFS labels and partition tables first. Then it creates both pools (`ashift=12`, `lz4`, `atime=off`). TRIM stays **off** on the SSD pool, because the enclosure's JMicron USB bridge mishandles TRIM and resets, which suspended the pool during the first rebuild and these datasets:
 
 | Dataset | Mounted at | Used for |
 |---|---|---|

@@ -72,7 +72,9 @@ echo "ALL DATA ON THESE DRIVES WILL BE ERASED."
 read -r -p "Type CREATE to continue: " answer
 [[ "$answer" == "CREATE" ]] || { echo "Aborted."; exit 1; }
 
-create_pool "$POOL"     "$POOL_LAYOUT" "-o autotrim=on" "$POOL_DISKS"   # SSDs: pass TRIM through
+# No autotrim: the enclosure's JMicron JMS567 USB bridge mishandles TRIM/UNMAP and resets,
+# which suspended the SSD pool during the first rebuild.
+create_pool "$POOL"     "$POOL_LAYOUT" "-o autotrim=off" "$POOL_DISKS"
 create_pool "$BKP_POOL" "$BKP_LAYOUT"  ""               "$BKP_DISKS"
 
 # --- Data pool (SSDs) ---
