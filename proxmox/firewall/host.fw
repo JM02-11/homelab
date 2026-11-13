@@ -1,0 +1,8 @@
+[OPTIONS]
+enable: 1
+
+[RULES]
+# Proxmox host: web UI and SSH from the LAN only
+IN ACCEPT -source __LAN__ -p tcp -dport 8006 -log nolog
+IN SSH(ACCEPT) -source __LAN__ -log nolog
+IN Ping(ACCEPT) -source __LAN__ -log nolog

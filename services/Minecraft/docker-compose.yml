@@ -1,0 +1,46 @@
+name: minecraft
+
+services:
+  mc:
+    container_name: minecraft
+    image: itzg/minecraft-server:${MC_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment:
+      EULA: "TRUE"
+      TYPE: PAPER
+      VERSION: ${MC_VERSION:-LATEST}
+      MEMORY: 4G                 # VM has 6 GB; 4 GB for the server, the rest for the OS
+      TZ: ${TZ}
+      MOTD: ${MOTD}
+      DIFFICULTY: normal
+      # Only listed friends can join, because the server is reachable from the internet through playit.gg
+      ENABLE_WHITELIST: "TRUE"
+      ENFORCE_WHITELIST: "TRUE"
+      WHITELIST: ${WHITELIST}
+      OPS: ${OPS}
+      ENABLE_RCON: "true"
+      RCON_PASSWORD: ${RCON_PASSWORD}
+    ports:
+      - "25565:25565"
+    volumes:
+      - ./data:/data
+
+  backups:
+    container_name: minecraft-backups
+    image: itzg/mc-backup
+    restart: unless-stopped
+    depends_on:
+      - mc
+    environment:
+      RCON_HOST: mc
+      RCON_PASSWORD: ${RCON_PASSWORD}
+      BACKUP_INTERVAL: 24h
+      INITIAL_DELAY: 10m
+      PRUNE_BACKUPS_DAYS: 14
+      TZ: ${TZ}
+    volumes:
+      - ./data:/data:ro
+      # DAS backups share (virtiofs)
+      - /mnt/backups/minecraft:/backups

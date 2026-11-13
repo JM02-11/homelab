@@ -1,42 +1,71 @@
 # Homelab
 
-This is my homelab where  I have a photo server (Immich), a media server (Jellyfin) for movies and TV shows, and a Minecraft server that I play occasionally with my friends. All of the services are running inside Docker containers on two virtual machines. The homelab is based on an HP Prodesk 600 G4 DM and is running Proxmox as the hypervisor. I also have an ORICO 9958RU3 DAS (Direct Attached Storage) with 3.5" hard drives in a ZFS pool, which protects against drive failure by spreading data and parity across the drives. It replaced a smaller 5 × 960 GB SSD DAS in November 2026.
+My homelab runs a file and calendar server (Nextcloud), a password manager (Vaultwarden), network-wide ad blocking (AdGuard Home), and a Minecraft server I play occasionally with friends. Every service runs in a Docker container on one of two virtual machines. The host is an HP ProDesk 600 G4 DM running Proxmox as the hypervisor. Bulk storage is an ORICO 9958RU3 DAS (Direct Attached Storage) with 3.5" hard drives in a ZFS pool. The pool spreads data and parity across the drives, so it survives a drive failure.
 
-See [hardware/](hardware/README.md) for full specs
+The whole setup can be rebuilt from this repo: see **[REBUILD.md](REBUILD.md)**.
+
+| Folder | Contents |
+|---|---|
+| [hardware/](hardware/README.md) | Host, DAS, VM specs |
+| [network/](network/README.md) | IP plan, Tailscale, DNS, firewall |
+| [proxmox/](proxmox/) | Host scripts: teardown, ZFS pool, mappings, VMs, firewall rules, backups |
+| [vm/](vm/) | VM setup scripts: Docker, auto-updates, SSH hardening, mounts, app backups |
+| [services/](services/) | Docker Compose files + docs for each service |
+
+## Services
+
+| Service | VM | What it replaces | Reached via |
+|---|---|---|---|
+| [Nextcloud](services/Nextcloud/README.md) | Apps | Google Drive / Dropbox | Tailscale (HTTPS) |
+| [Vaultwarden](services/Vaultwarden/README.md) | Apps | Bitwarden / 1Password cloud | Tailscale (HTTPS) |
+| [AdGuard Home](services/AdGuardHome/README.md) | Apps | Ads and trackers on every device | LAN DNS + Tailscale DNS |
+| [Minecraft](services/Minecraft/README.md) | Minecraft | Paid server hosting | LAN + playit.gg tunnel |
 
 ## Why I Built This
 
 I built this homelab to develop hands-on skills in networking, security, and self-hosting.
 
 ### Networking
-- **Remote access with Tailscale:** Immich and Jellyfin are reachable from my phone through their iOS apps over Tailscale, a private VPN, so I can use them away from home.
-- **Game server tunneling with playit.gg:** friends on other networks connect to my Minecraft server through a playit.gg tunnel instead of through ports opened to the public.
-- **Static IPs:** the Proxmox host and all VMs have static IP addresses, so I can always remote into them without the addresses changing. DHCP reservations through my routers address reservation.
-- **Ports:** Immich runs on its default port (2283) and Jellyfin on its default (8096). The official Docker Compose files already map these, so no extra port configuration was needed.
+- **Remote access with Tailscale:** my phone and PC reach Nextcloud and Vaultwarden over Tailscale, a private VPN. **Tailscale Serve** gives them real HTTPS certificates without exposing anything to the internet.
+- **DNS:** AdGuard Home is the DNS server for the LAN (handed out by the router) and for my tailnet, so ads are blocked at home and away.
+- **Game server tunneling with playit.gg:** friends on other networks connect through a playit.gg tunnel instead of ports opened to the public.
+- **Static IPs:** the host and VMs have fixed addresses (cloud-init static IPs, matching DHCP reservations on the router).
 
 ### Security
-- **No open ports on my router.** All outside access goes through Tailscale or the playit.gg tunnel, which keeps my network from being directly exposed to attacks from the internet.
-- **Why it matters:** a VM exposed to the open internet could be hit by a DDoS attack, or someone could gain unauthorized remote access to it.
-- **Unique, strong passwords** for each VM and for the Proxmox hypervisor.
+- **No open ports on my router.** All outside access goes through Tailscale or the outbound playit.gg tunnel.
+- **Proxmox firewall:** inbound traffic to the host and both VMs is denied by default. Only the needed ports are allowed, and only from the LAN (rules in [proxmox/firewall/](proxmox/firewall/)).
+- **SSH keys only:** password login is disabled on the VMs and the host, and root can't log in to the VMs.
+- **Two-factor** on the Proxmox web UI and the Vaultwarden account.
+- **Automatic security updates** on both VMs (unattended-upgrades), with a 04:30 reboot window when one is needed.
+- **Least exposure:** Nextcloud and Vaultwarden listen only on `127.0.0.1` inside the VM, so they aren't reachable from the LAN at all. The Minecraft server enforces a whitelist.
+- **Unique, strong passwords** for each VM user, service, and the Proxmox hypervisor.
 
 ### Self-Hosting
-- **Immich and Jellyfin over Google Photos and Plex:** they're free and open source, private to me, and I can allocate as much storage to each as I want.
-- **Docker:** each service runs in its own isolated container, even on the same VM, so they don't depend on each other's updates or versions.
-- **Two VMs:** apps and game servers are kept separate because they need different resources.
-- **Storage:** the ZFS pool on the DAS is shared into the Apps VM with virtiofs, and Docker bind-mounts those folders into the Immich and Jellyfin containers.
+- **Docker:** each service runs in its own isolated container, with versions pinned so updates are deliberate.
+- **Two VMs:** apps and the game server are kept separate because they need different resources.
+- **Storage:** ZFS datasets on the DAS are shared into the VMs with virtiofs. Databases stay on the VMs' local SSD, because they shouldn't run on shared filesystems.
+
+### Backups
+
+| Layer | What | When | Kept |
+|---|---|---|---|
+| App backups | Nextcloud DB dump + config, Vaultwarden DB + keys, AdGuard config, Minecraft world | 01:30 nightly (Minecraft daily) | 14 days |
+| ZFS snapshots | `das/vault` (Nextcloud files + app backups) | 02:30 daily | 14 days |
+| VM backups | Both VMs (vzdump to `das-vzdump`) | 03:00 nightly | 7 daily, 4 weekly, 3 monthly |
 
 ### Game Server
-- **4 GB of RAM** for the Minecraft server. It runs without mods, and from experience a server needs at least 4 GB. The VM has 6 GB, and 4 GB of that goes to the server, with the rest for the OS.
-- **Stability:** no lag or crashes since it went live on October 19, 2026.
-- **Next step:** add backup plugin for automatic world backups.
+- **4 GB of RAM** for the Paper server out of the VM's 6 GB.
+- **Whitelist enforced**, because the playit.gg tunnel makes it reachable from anywhere.
+- **Automatic world backups** with `itzg/mc-backup`.
 
 ## Roadmap
-- [ ] **SSH:** to provide ease of access from my main computer while hardening access by replacing passwords.
-- [ ] **Two-factor:** Second layer of security. A stolen password is not enough for access.
-- [ ] **Firewall:** allow only the ports to the services I am running, deny all others.
-- [ ] **Auto updates:** Keeping everything current which is important in case of security vulnerabilities in previous versions.
-- [ ] **Intrusion detection:** Alerts and monitoring in case of intrusion or access from outside my network.
-- [ ] **Ad blocking:** Ads annoy me and I don't want to keep getting targeted ads for things I am uninterested in. Also lets me learn more about DNS.
-- [ ] **Vulnerability scanning:** Security practice and a way to detect issues with any other step I have set up.
-- [ ] **VLAN:** Would like to add to keep my server and main network separate but my router can't do internal VLANs (Nighthawk RS90).
-- [ ] **Backups:** Need to add backups for (apps {Immich, Jellyfin})
+- [x] **SSH:** key-only access from my main computer
+- [x] **Two-factor:** Proxmox web UI (TOTP) and Vaultwarden
+- [x] **Firewall:** Proxmox firewall, default deny, only service ports open
+- [x] **Auto updates:** unattended-upgrades on both VMs
+- [x] **Ad blocking:** AdGuard Home for the LAN and tailnet
+- [x] **Backups:** app backups, ZFS snapshots, and VM backups on the DAS
+- [ ] **Off-site backup:** everything is still in one house. Next: an encrypted copy off-site (USB drive kept elsewhere, or restic to cloud storage)
+- [ ] **Intrusion detection:** alerts if something unexpected logs in or scans the network
+- [ ] **Vulnerability scanning:** scan the VMs and container images regularly
+- [ ] **VLAN:** separate servers from personal devices. The RS90 can't do internal VLANs, so this needs a managed switch
